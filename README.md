@@ -9,6 +9,17 @@ Uses DFRobot Gravity analog EC sensor: https://wiki.dfrobot.com/Gravity_Analog_E
 
 DFRobot EC library was modified for more reliable calibration.
 
+##Configuration
+
+Target pH: is the pH level the system will aim towards using ph UP and ph DOWN buffer solutions
+Intvl: represents the interval between pH sensing and dosing. Make this longer to allow your ph buffer solution more time to mix in. 
+
+Target EC: is the EC level the system will aim towards by adding plant food.
+Intvl: represents the interval between EC sensing and dosing. Make this longer to allow your plant food more time to mix in.
+
+WMax: Max number of minutes to water consecutively for. This stops the water valve from overheating.
+CD: Number of minutes to let the valve cooldown after watering for WMax mins consecutively.
+
 ![image](https://github.com/shahmirthesquid/GrowBox-AutoRefill/assets/89569533/dbeaf064-ccfe-4a71-b0b0-388216bf522c)
 ![20231105_153834](https://github.com/shahmirthesquid/GrowBox-AutoRefill/assets/89569533/8a2ec76e-9069-4ba5-b3d3-eefab6408303)
 
