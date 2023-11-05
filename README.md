@@ -9,7 +9,7 @@ Uses DFRobot Gravity analog EC sensor: https://wiki.dfrobot.com/Gravity_Analog_E
 
 DFRobot EC library was modified for more reliable calibration.
 
-##Configuration
+## Configuration
 
 Target pH: is the pH level the system will aim towards using ph UP and ph DOWN buffer solutions
 Intvl: represents the interval between pH sensing and dosing. Make this longer to allow your ph buffer solution more time to mix in. 
