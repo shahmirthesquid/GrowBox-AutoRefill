@@ -1,4 +1,8 @@
 
+#include <SD.h>
+#include <SPI.h>
+
+
 //LCD and BUTTONS Setup-----------------------------------------------------------------------------------------
 static unsigned long sinceLastPrintTime;
 // define some values used by the panel and buttons
@@ -44,6 +48,7 @@ static float pHValue;
 
 
 float targetPH = 7;
+float phDownTolerance = 0.05;
 float phMins = 0.5;
 //-----------------------------------------------------------------------------------
 
@@ -54,12 +59,19 @@ float phMins = 0.5;
 #define EC_PIN A5
 DFRobot_EC ec;
 static unsigned long sinceLastECSamplingTime;
+
+#define ecPump 25
+unsigned long sinceLastECDose = 0;
+unsigned long ecDosingInterval = 30000;
+
+float targetEC = 1.8;
+float ecTolerance = 0.01;
+float ecMins = 0.5;
 //-------------------------------------------------------------------------------------------
 
 
 
 //Tap Water Dosing------------------------------------------------------------------------------------------
-unsigned long sinceLastNutrientDose;
 #define tapWaterValve 22
 #define waterLowSensor 2
 #define waterFullSensor 3
@@ -79,6 +91,14 @@ char waterLowChar[32];
 char* waterFullText();
 char* waterLowText();
 
+bool overwriteSD(const char*, const char*);
+bool writeSD(const char*, const char*);
+String readSD(const char*);
+
+void saveSettings();
+void loadSettings();
+
+
 //TimeKeeping
 bool hasBeen(int seconds,unsigned long sinceLast);
 bool hasBeenUL(unsigned long seconds,unsigned long sinceLast);
@@ -93,6 +113,7 @@ double averagearray(int* arr, int number);
 //Loop
 void checkSensors();
 void tryFillingWater();
-void tryDosing();
+void tryPHDosing();
+void tryECDosing();
 void menuReactTo(int);
 void menuPrint();

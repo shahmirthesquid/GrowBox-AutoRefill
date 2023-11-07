@@ -6,7 +6,7 @@ int read_LCD_buttons()
   lcd_key = analogRead(0);      // read the value from the sensor 
   // my buttons when read are centered at these valies: 0, 144, 329, 504, 741
   // we add approx 50 to those values and check to see if we are close
-  int tol = 50;
+  int tol = 20;
 
   unsigned long leftRightDelay = 220;
   bool allowedToLeftRight = hasBeenUL(leftRightDelay,sinceLastLeftRightKey);
@@ -117,6 +117,305 @@ char* waterLowText(){
 
 }
 
+bool initSD(){
+  int pinCS = 53;
+  if(SD.begin(pinCS)){
+    Serial.println("SD init successful!");
+    return true;
+  }
+  Serial.println("SD init failed!");
+  return false;
+}
+
+bool overwriteSD(const char* path, const char* message){
+
+  if( !initSD() ){
+    return false;
+  }
+
+  File file = SD.open(path, FILE_WRITE | O_CREAT | O_TRUNC);
+
+  if(file){
+    file.println(message);
+    file.close();
+    SD.end();
+    return true;
+  }
+  Serial.print("Error writing to file ");
+  Serial.println(path);
+  SD.end();
+  return false;
+}
+
+bool writeSD(const char* path, const char* message){
+
+  if( !initSD() ){
+    return false;
+  }
+
+  File file = SD.open(path, FILE_WRITE | O_APPEND | O_CREAT);
+
+  if(file){
+    file.println(message);
+    file.close();
+    SD.end();
+    return true;
+  }
+  Serial.print("Error writing to file ");
+  Serial.println(path);
+  SD.end();
+  return false;
+}
+
+String readSD(const char* filename) {
+
+  if( !initSD() ){
+    return "";
+  }
+
+  File file = SD.open(filename);
+  String data = "";
+  if (file) {
+    while (file.available()) {
+      data += (char)file.read();
+    }
+    file.close();
+  } else {
+    Serial.print("Error reading file ");
+    Serial.println(filename);
+  }
+  SD.end();
+  return data;
+}
+
+
+
+void loadSettings(){
+
+  //char[64] settingsFolder;
+  //strcpy(settingsFolder, "growbox-autorefill settings")
+  
+  int debug = 0;
+  
+  bool issue = false;
+  bool sdPluggedIn = initSD();
+
+  //if(issue){
+    targetPH = 7;
+    phDownTolerance = 0.05;
+    phMins = 0.5;
+    phDosingInterval = phMins * 60000;
+    targetEC = 1.8;
+    ecTolerance = 0.02;
+    ecMins = 0.5;
+    ecDosingInterval = ecMins * 60000;
+    waterMins = 5.0;
+    valveCDMins = 30.0;
+
+    fiveMins = waterMins * 60000;
+    thirtyMins = valveCDMins * 60000;
+  //}
+
+  if(sdPluggedIn){
+
+
+    String tmp;
+    tmp = readSD("growbox/phTarget.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading phtarget!");
+      }
+    }
+    else{
+      targetPH = tmp.toFloat();
+    }
+
+
+    tmp = readSD("growbox/phDTol.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading phtolerance!");
+      }
+    }
+    else{
+      phDownTolerance = tmp.toFloat();
+    }
+
+
+    tmp = readSD("growbox/phIntv.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading ph interval!");
+      }
+    }
+    else{
+      phMins = tmp.toFloat();
+    }
+    phDosingInterval = phMins * 60000;
+
+
+    tmp = readSD("growbox/ecTarget.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading ec target!");
+      }
+    }
+    else{
+      targetEC = tmp.toFloat();
+    }
+
+
+    tmp = readSD("growbox/ecTol.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading ec tolerance!");
+      }
+    }
+    else{
+      ecTolerance = tmp.toFloat();
+    }
+
+    tmp = readSD("growbox/ecIntv.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading ec interval!");
+      }
+    }
+    else{
+      ecMins = tmp.toFloat();
+    }
+    ecDosingInterval = ecMins * 60000;
+
+    tmp = readSD("growbox/WMax.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading WMax!");
+      }
+    }
+    else{
+      waterMins = tmp.toFloat();
+    }
+    fiveMins = waterMins * 60000;
+
+    tmp = readSD("growbox/CD.txt");
+    if(tmp==""){
+      issue = true;
+      if(debug){
+        Serial.println("Issue loading valve CD!");
+      }
+    }
+    else{
+      valveCDMins = tmp.toFloat();
+    }
+    thirtyMins = valveCDMins * 60000;
+  }
+
+
+  //return issue;
+  if(debug){
+    Serial.print("SD card detected? ");
+    Serial.println(sdPluggedIn);
+    
+    Serial.print("loading Issue detected? ");
+    Serial.println(issue);
+
+  }
+
+  if(!sdPluggedIn){
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print(" No SD card! :(");
+    delay(500);
+  }
+  else if(issue){
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("No files to load");
+    delay(500);
+  }
+  else{
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("Settings loaded!");
+    delay(500);
+  }
+}
+
+void saveSettings(){
+
+  int pinCS = 53;
+
+  SD.begin(pinCS);
+
+  char settingsFolder[64];
+  strcpy(settingsFolder, "growbox");
+  if( !SD.exists(settingsFolder) ){
+    if( SD.mkdir(settingsFolder) ){
+      Serial.println("Settings Folder Created!");
+    }
+    else{
+      Serial.println("Issue Creating Settings Folder!  :( ");
+      return;
+    }
+  }
+  SD.end();
+
+
+  char data[64];
+  char filePath[64];
+  //sprintf(data,"%f",targetPH);
+  dtostrf(targetPH,10,6,data);
+  sprintf(filePath,"%s/phTarget.txt",settingsFolder);
+  overwriteSD(filePath,data);
+  //sprintf(data,"%f",phDownTolerance);
+  dtostrf(phDownTolerance,10,6,data);
+  sprintf(filePath,"%s/phDTol.txt",settingsFolder);
+  overwriteSD(filePath,data);
+  //sprintf(data,"%f",phMins);
+  dtostrf(phMins,10,6,data);
+  sprintf(filePath,"%s/phIntv.txt",settingsFolder);
+  overwriteSD(filePath,data);
+
+  //sprintf(data,"%f",targetEC);
+  dtostrf(targetEC,10,6,data);
+  sprintf(filePath,"%s/ecTarget.txt",settingsFolder);
+  overwriteSD(filePath,data);
+  //sprintf(data,"%f",ecTolerance);
+  dtostrf(ecTolerance,10,6,data);
+  sprintf(filePath,"%s/ecTol.txt",settingsFolder);
+  overwriteSD(filePath,data);
+  //sprintf(data,"%f",ecMins);
+  dtostrf(ecMins,10,6,data);
+  sprintf(filePath,"%s/ecIntv.txt",settingsFolder);
+  overwriteSD(filePath,data);
+
+  //sprintf(data,"%f",waterMins);
+  dtostrf(waterMins,10,6,data);
+  sprintf(filePath,"%s/WMax.txt",settingsFolder);
+  overwriteSD(filePath,data);
+  //sprintf(data,"%f",valveCDMins);
+  dtostrf(valveCDMins,10,6,data);
+  sprintf(filePath,"%s/CD.txt",settingsFolder);
+  overwriteSD(filePath,data);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("   SAVED !");
+  delay(500);
+
+  //return true;
+
+}
+
+
+/*
 int getButtons()
 {
     static int keyLast = btnNONE;
@@ -166,7 +465,7 @@ int getButtons()
         return btnNONE;
     }
 }
-
+*/
 
 
 void checkSensors(){
@@ -253,9 +552,9 @@ void tryFillingWater(){
 
 
 
-void tryDosing(){
+void tryPHDosing(){
 
-  float tolerance = 0.01;
+  float tolerance = phDownTolerance;
   //lcd.print("W2:");
   if(pHValue>(targetPH+tolerance)  && hasBeenUL( phDosingInterval, sinceLastpHDose) ){
     
@@ -291,6 +590,32 @@ void tryDosing(){
     //lcd.print("T");
     digitalWrite(phDownPump,HIGH);
     digitalWrite(phUpPump,HIGH);
+  }
+}
+
+void tryECDosing(){
+
+  float tolerance = ecTolerance;
+  //lcd.print("W2:");
+
+  if(ecValue<(targetEC-tolerance)  && hasBeenUL( ecDosingInterval, sinceLastECDose) ){
+    
+    unsigned long dosingTime =  ( ( targetEC - ecValue) * 1000 ) +100  ;
+
+    if(!hasBeenUL(dosingTime,sinceLastECDose+ecDosingInterval)){
+      digitalWrite(ecPump,LOW);
+    }
+    else{
+      sinceLastECDose = millis();
+      //lcd.print("F");
+      digitalWrite(ecPump,HIGH);
+
+    }
+  }
+  
+  else{
+    //lcd.print("T");
+    digitalWrite(ecPump,HIGH);
   }
 }
 
